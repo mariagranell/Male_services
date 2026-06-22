@@ -5,7 +5,7 @@ Why male primates invest in costly behaviours producing public goods remains deb
 
 ## Code Overview
 
-All data used in the analyses can be found in the `Public_data` folder.
+All data and code associated with this project are available on OSF (https://osf.io/9fytc/overview)
 
 This project focuses on four types of cooperative services:
 
@@ -30,6 +30,13 @@ Each of these scripts contains:
 1. Data cleaning and preparation.
 2. **Model 1**, which tests for sex differences in service provision.
 3. **Model 2**, which investigates the determinants of service provision among males.
+
+### Supporting Function Files
+
+Two function files are included to facilitate reproducibility:
+
+* `functions_MS_p.R` contains a simplified version of the original `functions.R` file and includes only the custom functions required to run the analyses presented in this project.
+* `diagnostic_fcns_MS_p.R` contains diagnostic functions developed by Roger Mundry and used to assess model assumptions, evaluate random-effects structures, and determine support for random slopes.
 
 ### Tables and Summary Statistics
 
