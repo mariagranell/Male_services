@@ -13,25 +13,15 @@ library(stringr)
 library(tidyr)
 source('/Users/mariagranell/Repositories/data/functions.R')
 source('/Users/mariagranell/Repositories/data/diagnostic_fcns.r')
-# plotting
-library(patchwork)
-library(ggplot2)
-library(ggside)
-library(ggpubr)
-library(gridExtra)
-library(ggtext)
 # models
+library(ggplot2)
 library(lme4)
-library(car)
-library(ggstatsplot)
-library(fitdistrplus)
-library(gamlss)
 library(DHARMa)
 library(glmmTMB)
-library(emmeans)
-library(effects)
 library(sjPlot)
-library(ggeffects)
+library(effects)
+library(emmeans)
+library(car)
 
 # path ------------------------
 setwd()
@@ -361,41 +351,6 @@ bge1 <- bge %>%
 
 table(bge1$Sex)
 
-### fatherhood updated WRONG -> LOOK AT VLA
-# Calculate the start of tenure (recorded date minus the days present)
-#focal2 <-  focal1 %>%
-#  mutate(Tenure = as.numeric(ymd(Date)- ymd(StartDate_mb)),
-#         TenureYears = as.numeric(ymd(Date) - ymd(StartDate_mb)) / 365.25,
-#         MSEndDate = ymd(Date)) %>%
-#  # To caluclate potential fatherhood
-#  group_by(AnimalCode, Group) %>%      # Ensure calculations are per individual
-#  arrange(MSEndDate) %>%                  # Make sure records are in chronological order
-#  mutate(
-#  # Determine the mating season year of the monkey
-#  # If the record is in the first three months (month < 4), assume mating season was the previous year
-#  mating_year = if_else(month(MSEndDate) < 4, year(MSEndDate) - 1, year(MSEndDate)),
-#
-#  # Define mating season start and end for that year.
-#  mating_start = as.Date(paste0(mating_year, "-03-01")),
-#  mating_end   = as.Date(paste0(mating_year, "-07-30")),
-
-  # Create a flag for records that meet the conditions:
-  # The individual must have been present from before the mating season ended,
-  # and the record date must be after the mating season ended,
-  # and tenure must be greater than 0.49.
-#  flag = if_else(StartDate_mb <= mating_end & Season == "Baby", 1, 0),
-  # Use a cumulative maximum on the flag so that once a record qualifies (flag == 1),
-  # all subsequent records are marked as "Yes".
-#  Father = case_when(
-#      mating_year > 1 ~ "Yes",  # override if tenure is > 1 year
-#      cummax(flag) == 1 ~ "Yes",
-#      TRUE ~ "No"
-#    )
-#  ) %>%
-#  ungroup() %>% mutate(Father = ifelse(Sex == "F", NA, Father)) %>%
-#  #dplyr::select( -mating_year, -mating_end, -mating_start, -flag) %>%
-#  distinct()
-
 }
 rm(adults_thatparticipated, all, csi, rank, dat0, dat1, events, first_father_dates, high, medium, minor, rank, sexual, unhabituated_cutoff_date, unhabituation)
 range(bge1$Date)
@@ -404,9 +359,29 @@ length(unique(bge1$eventID))
 
 #write.csv(bge1, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/bge_modeldataframe.csv", row.names = FALSE)
 bge1p <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/bge_modeldataframe.csv") %>%
-  mutate(participation_binomial = ifelse(n_behav_per_event == 0, 0, 1))
+  mutate(participation_binomial = ifelse(n_behav_per_event == 0, 0, 1)) %>%
+      dplyr::select(
+    eventID,
+    Date,
+    Group,
+    bge_intensity,
+    Season,
+    AnimalCode,
+    Sex,
+    participation_binomial,
+    asr,
+    Unhabituated,
 
-write.csv(bge1p, "/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/bge_modeldataframe_p.csv", row.names = FALSE)
+    # male predictors
+    ELO_12m,
+    zCSI,
+    Father,
+    TenureYears,
+    mount_last12,
+    mount_coming12
+  )
+
+#write.csv(bge1p, "/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/bge_modeldataframe_p.csv", row.names = FALSE)
 }
 
 # public data is provided from this step forward
@@ -424,23 +399,15 @@ aa <- bge1 %>% mutate(data = "bge", date = Date) %>%
 model_data_firstmodel_bge <- bge1 %>%
   mutate(Date = as.Date(Date),
          asr_z = scale(asr, center = TRUE, scale = TRUE)[, 1]) %>%
-  dplyr::select(Sex, asr_z, n_males, n_members, Season, Group, AnimalCode, eventID,
-                intensity_per_event, Unhabituated, bge_intensity,
-                n_behav_per_event, participation_per_event, participation_binomial,
-                AM,AF, Date
+  dplyr::select(Sex, asr_z, Season, Group, AnimalCode, eventID, Unhabituated, bge_intensity, participation_binomial, Date
   ) %>%
   drop_na() %>% distinct()
 
   table(model_data_firstmodel_bge$bge_intensity)
-  table(model_data_firstmodel_bge$intensity_per_event)
   length(unique(model_data_firstmodel_bge$eventID)) #768 events
   length(unique(model_data_firstmodel_bge$AnimalCode)) #123 unique individuals, all adults
   table(model_data_firstmodel_bge$Sex, model_data_firstmodel_bge$Unhabituated)
   range(model_data_firstmodel_bge$Date)
-
-ggbetweenstats(model_data_firstmodel_bge, x = Sex, y = intensity_per_event)
-ggplot(model_data_firstmodel_bge, aes(x= bge_intensity, y = intensity_per_event, colour = Sex)) +
-  geom_boxplot()
 
 model_binomial <- glmmTMB(
   participation_binomial ~ Sex * (bge_intensity + asr_z + Season) + Group +
@@ -539,11 +506,9 @@ emmeans(model_binomial, ~ Sex, type = "response")
 # MODEL 2 - hypothesis testing, differences among males
 {
   model_data_base <- bge1 %>%
-  dplyr::select(Sex, asr, n_males, n_members, Season, Group, AnimalCode, eventID,
-                intensity_per_event, Unhabituated, bge_intensity, Date,
-                Sex, asr, n_males, n_members, Season, Group, n_behav_per_event, participation_per_event,
-                elo = ELO, elo_12m =ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated,
-                EndDate_mb, Date, participation_binomial
+  dplyr::select(Sex, asr, Season, Group, AnimalCode, eventID,
+                Unhabituated, bge_intensity, Date, Season, Group, elo_12m =ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated,
+                 Date, participation_binomial
   ) %>%
   drop_na() %>% distinct() %>%
   filter(Sex == "M")
@@ -756,7 +721,7 @@ ggplot(eff_bge_elofather, aes(x = elo_12m, y = fit, color = Father, fill = Fathe
 eff_bge_mountcoming <- ggpredict_unstadarized_glm(model_binomial, model_data_base, var_to_plot = "mount_coming12")
 #write.csv(eff_bge_mountcoming, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/effect_df_bge_mountcoming.csv", row.names = FALSE)
 
-ggplot(eff_bge_mountcoming, aes(mount_coming12_raw, predicted)) +
+ggplot(eff_bge_mountcoming, aes(x, predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.25) +
   geom_line(linewidth = 1) +
   labs(x = "Coming mounts in next year",
@@ -765,7 +730,7 @@ ggplot(eff_bge_mountcoming, aes(mount_coming12_raw, predicted)) +
   theme(legend.position = "top")
 
 eff_bge_mountcoming_past <- ggpredict_unstadarized_glm(model_binomial, model_data_base, var_to_plot = "mount_last12")
-write.csv(eff_bge_mountcoming_past, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/effect_df_bge_mountcoming_past.csv", row.names = FALSE)
+#write.csv(eff_bge_mountcoming_past, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/effect_df_bge_mountcoming_past.csv", row.names = FALSE)
 
 ggplot(eff_bge_mountcoming_past, aes(var_to_plot_raw, predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.25) +

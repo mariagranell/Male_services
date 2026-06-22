@@ -13,24 +13,15 @@ library(stringr)
 library(tidyr)
 source('/Users/mariagranell/Repositories/data/functions.R')
 source('/Users/mariagranell/Repositories/data/diagnostic_fcns.r')
-# plotting
-library(patchwork)
-library(ggplot2)
-library(ggside)
-library(ggpubr)
-library(gridExtra)
-library(ggtext)
 # models
+library(ggplot2)
 library(lme4)
-library(ggstatsplot)
-library(fitdistrplus)
-library(gamlss)
 library(DHARMa)
 library(glmmTMB)
 library(sjPlot)
-library(rstatix)
 library(effects)
 library(emmeans)
+library(car)
 
 # path ------------------------
 setwd()
@@ -102,7 +93,28 @@ crs_keep <- crs %>% filter(Obs.nr %in% crs_atleast_tenpercent$Obs.nr, Obs.nr != 
   )
 
     table(crs_keep$CrossingType)
-crs_keep_males <- crs_keep %>% filter(AgeClass == "AM")
+crs_keep_males <- crs_keep %>% filter(AgeClass == "AM") %>%
+    dplyr::select(
+        Obs.nr,
+    Date,
+    Group,
+    CrossingType,
+    Season,
+    AnimalCode,
+    Sex,
+    FirstCrosser,
+    asr,
+    Unhabituated,
+    n_males,
+
+    # male predictors
+    ELO_12m,
+    zCSI,
+    Father,
+    TenureYears,
+    mount_last12,
+    mount_coming12
+  )
   # base dataframe for the other calculations
 write.csv(crs_keep_males, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/crossing_maleservices_basedf.csv", row.names = F)
 
@@ -214,9 +226,8 @@ crossing1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpu
 {
 model_data_model1_crs <- crossing1 %>%
   mutate(Date = as.Date(Date)) %>%
-  dplyr::select(Sex, asr, n_males, n_members, Season, Group, AnimalCode, EventID = Obs.nr,
-                Unhabituated, FirstCrosser,  CrossingType, Date,
-                AM,AF
+  dplyr::select(Sex, asr, Season, n_males, Group, AnimalCode, EventID = Obs.nr,
+                Unhabituated, FirstCrosser,  CrossingType, Date
   ) %>%
    mutate(asr_z = scale(asr, center = TRUE, scale = TRUE)[, 1] ) %>%
   drop_na()%>%
@@ -246,12 +257,12 @@ testOutliers(res, type = "bootstrap") # good
 plot(acf(resid(model))) # good
 
   # homoscedasticity checks
-plotResiduals(res, model_data_model1_crs3$Sex) # good
-plotResiduals(res, model_data_model1_crs3$Threat) # good
-plotResiduals(res, model_data_model1_crs3$asr) # minimal desviations, good.
-plotResiduals(res, model_data_model1_crs3$Season) # good
-plotResiduals(res, model_data_model1_crs3$Unhabituated) # good
-plotResiduals(res, model_data_model1_crs3$Group) # good
+plotResiduals(res, model_data_model1_crs$Sex) # good
+plotResiduals(res, model_data_model1_crs$Threat) # good
+plotResiduals(res, model_data_model1_crs$asr) # minimal desviations, good.
+plotResiduals(res, model_data_model1_crs$Season) # good
+plotResiduals(res, model_data_model1_crs$Unhabituated) # good
+plotResiduals(res, model_data_model1_crs$Group) # good
 
   # normality of random effects
 # slight desviations from normality but ok!
@@ -259,9 +270,9 @@ qqnorm(ranef(model)$cond$AnimalCode[[1]]); qqline(ranef(model)$cond$AnimalCode[[
 
       # check mulicolinearity. All good
   vif_model <- lm(
-  participation_alarm ~ Sex * Threat + asr + Season + Unhabituated +
+  FirstCrosser ~ Sex + asr_z + Season + Unhabituated +
     + Group,
-  data = model_data_model1_crs3); vif(vif_model)
+  data = model_data_model1_crs); vif(vif_model)
 
 }
 
@@ -318,10 +329,8 @@ plot(allEffects(model))
 {
 model_data_base <- crossing1 %>%
   filter(Sex == "M") %>%
-  dplyr::select(asr, n_males, n_members, Season, Group, AnimalCode, EventID = Obs.nr, Unhabituated, FirstCrosser, CrossingType,
-                Sex, asr, n_males, n_members, Season, Group,
-                elo = ELO, elo_12m =ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated, Date,
-                EndDate_mb
+  dplyr::select(asr, n_males, Season, Group, AnimalCode, EventID = Obs.nr, Unhabituated, FirstCrosser, CrossingType,
+                Sex, asr, Season, Group, elo_12m =ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated, Date
   ) %>%
   distinct()
 model_data <- model_data_base%>%
@@ -530,7 +539,7 @@ ggplot(eff_crs_elofather, aes(x = elo_12m, y = fit, color = Father, fill = Fathe
 eff_crs_mountcoming <- ggpredict_unstadarized_glm(model, model_data_base, var_to_plot = "mount_coming12")
 #write.csv(eff_crs_mountcoming, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/effect_df_crs_mountcoming.csv", row.names = FALSE)
 
-ggplot(eff_crs_mountcoming, aes(x = mount_coming12_raw, y = predicted)) +
+ggplot(eff_crs_mountcoming, aes(x = x, y = predicted)) +
   geom_line(size = 1.2) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, linetype = 0) +
   labs(x = "Coming mounts in next year",

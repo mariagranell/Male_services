@@ -13,23 +13,16 @@ library(stringr)
 library(tidyr)
 source('/Users/mariagranell/Repositories/data/functions.R')
 source('/Users/mariagranell/Repositories/data/diagnostic_fcns.r')
-# plotting
-library(patchwork)
-library(ggplot2)
-library(ggside)
-library(ggpubr)
-library(gridExtra)
-library(ggtext)
 # models
+library(ggplot2)
 library(lme4)
-library(ggstatsplot)
-library(fitdistrplus)
-library(gamlss)
 library(DHARMa)
-library(sjPlot)
 library(glmmTMB)
+library(sjPlot)
 library(effects)
+library(emmeans)
 library(car)
+
 
 # path ------------------------
 setwd()
@@ -160,8 +153,25 @@ range(focal1$Date)
 #write.csv(focal1, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/vigilance_modeldataframe.csv", row.names = FALSE)
 
   focal1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/vigilance_modeldataframe.csv")%>%
-    select(Sex, asr, n_males, n_members, Season, Group, IDIndividual1, Total, Vigilant, Unhabituated, Date,
-           ELO, ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, EndDate_mb, Age_class)
+        dplyr::select(
+        Total,
+    Date,
+    Group,
+    Season,
+    IDIndividual1,
+    Sex,
+    Vigilant,
+    asr,
+    Unhabituated,
+
+    # male predictors
+    ELO_12m,
+    zCSI,
+    Father,
+    TenureYears,
+    mount_last12,
+    mount_coming12
+  )
   write.csv(focal1, "/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/sentinelling_modeldataframe_p.csv", row.names = FALSE)
 
 }
@@ -172,7 +182,7 @@ focal1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpubli
 
 # MODEL 1 - sex differences
 { model_data_model1_vig <- focal1 %>%
-  dplyr::select(Sex, asr, n_males, n_members, Season, Group, AnimalCode =IDIndividual1, Total, Vigilant, Unhabituated, Date) %>%
+  dplyr::select(Sex, asr, Season, Group, AnimalCode =IDIndividual1, Total, Vigilant, Unhabituated, Date) %>%
     drop_na() %>% distinct() %>%
     mutate(asr_z = scale(asr, center = TRUE, scale = TRUE)[,1]) %>%
   # remove outlier destected with testOutliers(res)
@@ -292,13 +302,12 @@ plot(allEffects(model))
 # MODEL 2 - hypothesis testing, differences among males
 {
   model_data_base <- focal1 %>%
-  filter(Sex == "M", Age_class == "adult") %>%
-  dplyr::select(Sex, asr, n_males, n_members, Season, Group, AnimalCode = IDIndividual1, Total, Vigilant,
-                elo = ELO, elo_12m = ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated,
-                Date, EndDate_mb
+  filter(Sex == "M") %>%
+  dplyr::select(Sex, asr, Season, Group, AnimalCode = IDIndividual1, Total, Vigilant,
+                elo_12m = ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated,
+                Date
   ) %>%
   filter(Vigilant < 700) %>%   # remove outlier destected with testOutliers(res)
-  mutate(elo = as.numeric(na_if(elo, "Date out of bounds"))) %>%
   drop_na() %>% distinct() %>%
   mutate(prop = log(Vigilant/Total+1))
 model_data <- model_data_base%>% # scale all variables

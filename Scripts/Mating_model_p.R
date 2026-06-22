@@ -12,22 +12,14 @@ library(dplyr)
 library(stringr)
 library(tidyr)
 source('/Users/mariagranell/Repositories/data/functions.R')
-# plotting
-library(patchwork)
-library(ggplot2)
-library(ggside)
-library(ggpubr)
-library(gridExtra)
-library(ggtext)
 # models
+library(ggplot2)
 library(lme4)
 library(ggstatsplot)
 library(fitdistrplus)
-library(gamlss)
 library(DHARMa)
 library(glmmTMB)
 library(sjPlot)
-library(rstatix)
 library(effects)
 library(emmeans)
 # for model selection
@@ -246,21 +238,12 @@ aa <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpublicati
     filter(Group_mb != "AK") %>%
     dplyr::select(number_matings, N_AlarmService, VigProp, N_BgeService = N_Bge_participates,
                   N_AlarmServiceMP, N_AlarmServiceBARK,
-                  days_present, N_CrsService, ELO_12m, elo_cat, zCSI, TenureYears, TenureLeft, Unhabituated, year, Group_mb, AnimalCode) %>%
+                  days_present, N_CrsService, ELO_12m, zCSI, TenureYears, TenureLeft, Unhabituated, year, Group_mb, AnimalCode) %>%
     distinct() %>%
     drop_na() %>%
-    filter(VigProp < 0.49) # outlier also removed from the vigilance models.
-
-  write.csv(aa, "/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/mating_df_models_p.csv")
-}
-}
-
-# public data is provided from this step forward.
-# The group AK was removed since they do not have rivers in their territory, so is not possible to anakyze their crossing behaviour
-# We eliminated 1 outlier, the same as in the vigilance model, since most of the time of the focal was spent in vigilance, which was very different to the rest of the dataset and presented signals of stress. Pobably due to the observer.
-mating1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/mating_df_models_p.csv") %>%
-  # add father
-      left_join(.,lh %>% dplyr::select(AnimalCode, StartDate_mb, EndDate_mb, Group_mb), by = c("AnimalCode", "Group_mb"), relationship = "many-to-many") %>%
+    filter(VigProp < 0.49) %>% # outlier also removed from the vigilance models.
+    # add father
+    left_join(.,lh %>% dplyr::select(AnimalCode, StartDate_mb, EndDate_mb, Group_mb), by = c("AnimalCode", "Group_mb"), relationship = "many-to-many") %>%
     filter(between(year,year(StartDate_mb), year(EndDate_mb))) %>% # remove entries out of season, final number(62)
     mutate(FirstMatingSeason = case_when(
            month(StartDate_mb) <= 7 ~ ymd(paste0(year(StartDate_mb), "-03-01")),
@@ -268,6 +251,15 @@ mating1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpubl
            FirstBabySeason = ymd(paste0(year(FirstMatingSeason), "-10-01")),
            Date = paste0(year, "-03-01"),
            Father = ifelse(Date > FirstBabySeason, "Yes", "No"))
+
+  write.csv(aa, "/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/mating_df_models_p.csv", row.names = F)
+}
+}
+
+# public data is provided from this step forward.
+# The group AK was removed since they do not have rivers in their territory, so is not possible to anakyze their crossing behaviour
+# We eliminated 1 outlier, the same as in the vigilance model, since most of the time of the focal was spent in vigilance, which was very different to the rest of the dataset and presented signals of stress. Pobably due to the observer.
+mating1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/mating_df_models_p.csv")
 
 # ANALYSIS FOLLOWING THE RAW SERVICES
   model_df<-mating1  %>%

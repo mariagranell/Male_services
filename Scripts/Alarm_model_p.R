@@ -13,19 +13,9 @@ library(stringr)
 library(tidyr)
 source('/Users/mariagranell/Repositories/data/functions.R')
 source('/Users/mariagranell/Repositories/data/diagnostic_fcns.r')
-# plotting
-library(patchwork)
-library(ggplot2)
-library(ggside)
-library(ggpubr)
-library(gridExtra)
-library(ggtext)
-library(ggeffects)
 # models
+library(ggplot2)
 library(lme4)
-library(ggstatsplot)
-library(fitdistrplus)
-library(gamlss)
 library(DHARMa)
 library(glmmTMB)
 library(sjPlot)
@@ -195,7 +185,27 @@ alarm1p <- alarm1p %>%
     filter(
       Threat %in% c( "Terrestrial", "Aerial"),
       threat_predator == "Predator"
-    )
+    ) %>%
+    dplyr::select(
+    EventID,
+    Date,
+    Group,
+    Threat,
+    Season,
+    AnimalCode,
+    Sex,
+    participation_alarm,
+    asr,
+    Unhabituated,
+
+    # male predictors
+    ELO_12m,
+    zCSI,
+    Father,
+    TenureYears,
+    mount_last12,
+    mount_coming12
+  )
 write.csv(alarm1p, "/Users/mariagranell/Repositories/male_services_index/MSpublication/Public_data/alarm_modeldataframe_p.csv", row.names = FALSE)
 }
 
@@ -208,9 +218,7 @@ alarm1 <- read.csv("/Users/mariagranell/Repositories/male_services_index/MSpubli
 {
 model_data_firstmodel_alarm <- alarm1 %>%
   mutate(Date = as.Date(Date)) %>%
-  dplyr::select(Sex, asr, n_males, n_members, Season, Group, AnimalCode, EventID,
-                threat_predator, Unhabituated, participation_alarm, Threat, Date,
-                AM,AF
+  dplyr::select(Sex, asr, Season, Group, AnimalCode, EventID, Unhabituated, participation_alarm, Threat, Date
   ) %>%
   distinct() %>% # the amount of duplicates removes is due to differences in GPS format but still ame info.
                  # same for the 1 second difference in Time
@@ -312,11 +320,8 @@ plot(allEffects(model))
 # MODEL 2 - hypothesis testing, differences among males
 {
 model_data_base <- alarm1 %>%
-  dplyr::select(Sex, asr, n_males, n_members, Season, Group, AnimalCode, EventID,
-                threat_predator, Unhabituated, participation_alarm, Threat,
-                Sex, asr, n_males, n_members, Season, Group,
-                elo = ELO, elo_12m =ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated, Date,
-                EndDate_mb
+  dplyr::select(Sex, asr, Season, Group, AnimalCode, EventID, Unhabituated, participation_alarm, Threat,
+                Sex, asr, Season, Group, elo_12m =ELO_12m, zCSI, Father, TenureYears, mount_coming12, mount_last12, Unhabituated, Date
   ) %>%
   distinct() %>%
   filter(Sex == "M") %>%
@@ -544,7 +549,7 @@ ggplot(eff_alarm_mountcoming, aes(x = var_to_plot_raw, y = predicted)) +
 eff_alarm_mountcoming_past <- ggpredict_unstadarized_glm(model, model_data_base, var_to_plot = "mount_last12")
 write.csv(eff_alarm_mountcoming_past, "/Users/mariagranell/Repositories/male_services_index/MSpublication/OutputFiles/effect_df_alarm_mountcoming_past.csv", row.names = FALSE)
 
-ggplot(eff_alarm_mountcoming_past, aes(x = x_raw, y = predicted)) +
+ggplot(eff_alarm_mountcoming_past, aes(x = x, y = predicted)) +
   geom_line(size = 1.2) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, linetype = 0) +
   labs(x = "Coming mounts in next year",
